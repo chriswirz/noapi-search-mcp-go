@@ -1,0 +1,57 @@
+# nfpm config used by the GitHub Actions pipeline to build .deb and .rpm
+# packages. ARCH and PKG_VERSION are supplied by the pipeline, which also stages
+# the binary for the target architecture at packaging/noapi-search-mcp (nfpm
+# does not expand environment variables inside contents paths).
+name: noapi-search-mcp
+arch: ${ARCH}
+platform: linux
+version: ${PKG_VERSION}
+section: web
+priority: optional
+maintainer: noapi-search-mcp maintainers
+description: |
+  Real search results and web pages for a model, with no API keys. It drives a
+  headless browser and reads search engines' own HTML endpoints: Google,
+  DuckDuckGo, Bing, Brave, Startpage and Mojeek for general search, Google's
+  verticals for news, scholar, books, shopping and images, geocoding, places
+  and directions, and a page reader that renders before extracting text.
+  .
+  The same capabilities are served twice - as Model Context Protocol tools
+  (revision 2026-07-28, with the older initialize-based revisions still
+  answered), and as an OpenAPI 3.1 HTTP API with Swagger UI compiled into the
+  binary.
+  .
+  Scraping depends on pages that change, and when one does the symptom is an
+  empty result rather than an error. `noapi-search-mcp --selftest` checks each
+  service against a known query and reports whether it is answering normally,
+  refusing this address, or returning something the extraction can no longer
+  read - exiting non-zero only for the last.
+homepage: https://github.com/chriswirz/noapi-search-mcp-go
+license: MIT
+
+# No browser is declared as a dependency, deliberately. Three of the six search
+# engines need no browser at all, so the package is useful without one; and for
+# the other three this server drives whichever Chrome or Chromium is present,
+# or the build the Playwright driver fetches on demand. Naming a package would
+# be wrong for every one of those cases and would drag a browser onto machines
+# that only wanted the browser-free engines.
+recommends:
+  - chromium | google-chrome-stable
+
+contents:
+  - src: packaging/noapi-search-mcp
+    dst: /usr/bin/noapi-search-mcp
+    file_info:
+      mode: 0755
+  - src: README.md
+    dst: /usr/share/doc/noapi-search-mcp/README.md
+    file_info:
+      mode: 0644
+  - src: config.example.json
+    dst: /usr/share/doc/noapi-search-mcp/config.example.json
+    file_info:
+      mode: 0644
+  - src: LICENSE
+    dst: /usr/share/doc/noapi-search-mcp/LICENSE
+    file_info:
+      mode: 0644

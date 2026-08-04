@@ -1,0 +1,25 @@
+<!--
+  A trimmed capture of a real Mojeek results page, kept as the fixture for the
+  parser. The shape is what matters and is reproduced exactly: the results are
+  <li> children of ul.results-standard, each carrying a rank class - r1, r2,
+  r3 - rather than a shared one. Keying off a class name is what broke this
+  parser, so the fixture keeps the classes exactly as served.
+
+  Each result has the destination three times over: on the breadcrumb link
+  (a.ob), on its title attribute, and on the title link (h2 a.title). None of
+  them is a redirect, which is why Mojeek results need no unwrapping.
+-->
+<html>
+<head><title>model context protocol specification - Mojeek Search</title></head>
+<body>
+<div class="results-info">Results 1 to 10 from 1,855,327 in 0.29s</div>
+<ul class="results-standard">
+<!--ls-->
+<!--rs--><li class="r1"><a title="https://modelcontextprotocol.io/specification/2025-06-18" href="https://modelcontextprotocol.io/specification/2025-06-18" class="ob"><p class="i"><span class="url">https://modelcontextprotocol.io<span> › specification › 2025-06-18</span></span></p></a><h2><a class="title" title="https://modelcontextprotocol.io/specification/2025-06-18" href="https://modelcontextprotocol.io/specification/2025-06-18">Specification - Model Context Protocol</a></h2><p class="s"><strong>Model</strong> <strong>Context</strong> <strong>Protocol</strong> (MCP) is an open <strong>protocol</strong> that enables seamless integration between LLM applications and external data sources and tools.</p></li><!--re-->
+<!--rs--><li class="r2 clu-result"><a title="https://modelcontextprotocol.io/specification/2025-11-25" href="https://modelcontextprotocol.io/specification/2025-11-25" class="ob"><p class="i"><span class="url">https://modelcontextprotocol.io<span> › specification › 2025-11-25</span></span></p></a><h2><a class="title" title="https://modelcontextprotocol.io/specification/2025-11-25" href="https://modelcontextprotocol.io/specification/2025-11-25">Specification - Model Context Protocol</a></h2><p class="s">A later revision of the same document, with the authorization section rewritten.</p></li><!--re-->
+<!--rs--><li class="r3 clu-result"><a title="https://github.com/modelcontextprotocol/go-sdk" href="https://github.com/modelcontextprotocol/go-sdk" class="ob"><p class="i"><span class="url">https://github.com<span> › modelcontextprotocol › go-sdk</span></span></p></a><h2><a class="title" title="https://github.com/modelcontextprotocol/go-sdk" href="https://github.com/modelcontextprotocol/go-sdk">MCP Go SDK</a></h2><p class="s">The official Go SDK for Model Context Protocol servers and clients.</p></li><!--re-->
+<!--rs--><li class="r4 clu-result"><a title="https://example.org/no-snippet" href="https://example.org/no-snippet" class="ob"><p class="i"><span class="url">https://example.org<span> › no-snippet</span></span></p></a><h2><a class="title" title="https://example.org/no-snippet" href="https://example.org/no-snippet">A result with no snippet</a></h2></li><!--re-->
+<!--le-->
+</ul>
+</body>
+</html>

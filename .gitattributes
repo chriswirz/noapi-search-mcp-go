@@ -1,0 +1,36 @@
+# Line endings.
+#
+# Git on Windows converts LF to CRLF on checkout by default, and for a shell
+# script that is not a cosmetic difference: a build.sh with carriage returns
+# fails on Linux with "bad interpreter: /bin/sh^M", and install.sh - which
+# people run by piping it straight from a URL into sh - fails the same way.
+# So the text files here are pinned to LF regardless of the machine they are
+# checked out on.
+
+# Everything text, normalised in the repository.
+* text=auto eol=lf
+
+# Scripts that must have LF wherever they run.
+*.sh    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.go    text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+
+# Windows scripts want CRLF. cmd.exe tolerates LF in most cases and then
+# surprises you on a line continuation, and PowerShell here-strings are worse;
+# both are only ever run on Windows, so there is nothing to gain by pinning
+# them the other way.
+*.cmd   text eol=crlf
+*.bat   text eol=crlf
+*.ps1   text eol=crlf
+
+# The embedded Swagger UI assets are third-party and vendored verbatim. They
+# are marked as such so they do not clutter a diff, and are left byte-for-byte
+# as published rather than being normalised.
+static/swagger/** binary linguist-vendored
+
+# Captured API responses, used as test fixtures. Normalising them would be
+# rewriting the evidence.
+testdata/** -text

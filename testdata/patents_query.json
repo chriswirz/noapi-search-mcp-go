@@ -1,0 +1,53 @@
+{
+  "results": {
+    "total_num_results": 410,
+    "cluster": [
+      {
+        "result": [
+          {
+            "patent": {
+              "title": " Integrated components for vehicles",
+              "snippet": " The system 200 in FIG. 2 enables the reduction of a plurality of additional parts or components, such as <b>battery</b> shields, reservoir pump brackets, and additional ducting, some of which is illustrated in FIG. 1 . Additionally, in some embodiments, the integrated component 202 can be applied to &hellip;",
+              "priority_date": "2021-06-09",
+              "filing_date": "2024-12-13",
+              "grant_date": "2025-12-16",
+              "publication_date": "2025-12-16",
+              "inventor": "Marcus Stack",
+              "assignee": "<b>Tesla</b>, Inc.",
+              "publication_number": "US12497105B2",
+              "pdf": ""
+            }
+          },
+          {
+            "patent": {
+              "title": " Technologies for manifolds",
+              "snippet": "&hellip;  a Hardware 2 component set (November 2016). The chassis supports a power source, a drive source, a set of wheels, a computing unit, and other vehicle components. The power source includes a <b>battery</b>, which is rechargeable. The drive source includes an electric motor, whether brushed or brushless.",
+              "priority_date": "2017-08-04",
+              "filing_date": "2024-08-09",
+              "grant_date": "2025-12-02",
+              "publication_date": "2025-12-02",
+              "inventor": "John David Calderone",
+              "assignee": "<b>Tesla</b>, Inc.",
+              "publication_number": "US12485730B2",
+              "pdf": ""
+            }
+          },
+          {
+            "patent": {
+              "title": " Vehicle network and method of communication",
+              "snippet": " may be a vehicle module which communicates with other modules in the vehicle. Examples of vehicle modules include, doors, seats, <b>battery</b> pack, front end module, front subframe module, rear subframe module, and so forth. Each module may include various sensors, and/or actuators—for example, impact &hellip;",
+              "priority_date": "2018-10-22",
+              "filing_date": "2024-06-10",
+              "grant_date": "2025-08-12",
+              "publication_date": "2025-08-12",
+              "inventor": "Adnan Esmail",
+              "assignee": "<b>Tesla</b>, Inc.",
+              "publication_number": "US12388767B2",
+              "pdf": ""
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

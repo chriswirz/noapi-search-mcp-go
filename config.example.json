@@ -1,0 +1,153 @@
+{
+  "_comment": [
+    "Every key here has a working default, so this file is optional: the server",
+    "runs on its defaults and its flags with no config.json at all. What follows",
+    "is the full set, with the values it uses when you say nothing.",
+    "",
+    "Unknown keys are refused rather than ignored, so a typo is reported at",
+    "startup instead of silently doing nothing. Keys beginning with an",
+    "underscore are treated as comments and ignored, which is what the _name",
+    "notes below are - leave them or delete them, either works."
+  ],
+
+  "server": {
+    "name": "noapi-search-mcp",
+    "instructions": "",
+
+    "_transport": "stdio for a client that launches this server as a subprocess; http to listen on a port.",
+    "transport": "stdio",
+
+    "_url": "The full URL clients connect to, and what the server binds to. Only used with the http transport.",
+    "url": "http://127.0.0.1:8780/mcp",
+
+    "_urls": "Several endpoints at once, typically one http and one https on different ports. Replaces url entirely.",
+    "urls": [],
+
+    "_auth_token": "Required as 'Authorization: Bearer <token>' on every HTTP request - the MCP endpoint, the REST resources and the spec alike. Set it whenever this is reachable by anything but this machine, and always when the tunnel is on.",
+    "auth_token": "",
+    "_auth_token_env": "Read the token from this environment variable instead, so the credential stays out of a file that gets committed.",
+    "auth_token_env": "",
+
+    "_allowed_origins": "Origins a browser may call the MCP endpoint from. This is the DNS-rebinding defence, so keep it tight. The REST facade is not governed by it - the bearer token is what protects that.",
+    "allowed_origins": ["http://127.0.0.1", "http://localhost"],
+    "allowed_headers": [],
+    "allow_private_network": true,
+
+    "tls_cert_file": "",
+    "tls_key_file": "",
+    "_tls_self_signed": "Generate a certificate at startup. Fine for a private endpoint; a browser will warn about it.",
+    "tls_self_signed": false,
+
+    "_legacy_compatibility": "Also serve the initialize-based revisions 2025-03-26 through 2025-11-25 alongside 2026-07-28.",
+    "legacy_compatibility": true,
+    "session_timeout_seconds": 7200,
+    "_session_recovery": "Adopt a session id this process does not know instead of answering 404. Off by default: the 404 is what the specification asks for, and the client is required to start a new session. Turn it on for a client that does not, and shows \"session terminated\" instead.",
+    "session_recovery": false
+  },
+
+  "browser": {
+    "_cdp_url": "Attach to a Chrome you started yourself with --remote-debugging-port, e.g. http://127.0.0.1:9222, instead of launching one. This is the most effective answer to being blocked: a browser you have actually been using is not what the bot detection is looking for. Measured on one machine, attaching took the compatibility check from 10 ok / 5 blocked to 14 ok / 1 blocked. It drives a browser holding your real sessions, in tabs beside your own; this server opens and closes only its own tabs, applies no fingerprint patches and never writes your cookie jar. Everything else in this section is ignored when it is set.",
+    "cdp_url": "",
+
+    "_headless": "Run with no window. Turning this off is a debugging aid, and it is also what gets the strictest engines working: Startpage in particular refuses headless browsers outright.",
+    "headless": true,
+
+    "_channel": "A stable browser install - chrome, chrome-beta, msedge - instead of Playwright's bundled Chromium. Empty means the bundled build, which is the reproducible choice.",
+    "channel": "",
+    "executable_path": "",
+
+    "_profile_dir": "The persistent user-data directory. Keeping it is what makes Google see a returning browser rather than a fresh one, which is most of what avoids a CAPTCHA.",
+    "profile_dir": "profile",
+
+    "_user_agent": "Leave this empty. The server reads the real user agent from the running browser and removes only the word 'Headless' from it; a string written by hand drifts from the binary and is a worse signal than the honest one.",
+    "user_agent": "",
+
+    "locale": "en-US",
+    "timezone_id": "",
+    "viewport_width": 1280,
+    "viewport_height": 800,
+
+    "default_timeout_ms": 20000,
+    "navigation_timeout_ms": 45000,
+
+    "_max_pages": "How many scrapes may run at once. Each is a tab in one shared browser.",
+    "max_pages": 4,
+    "_idle_timeout_seconds": "Close the browser after this long with no tool call. It starts again on the next call that needs it.",
+    "idle_timeout_seconds": 300,
+
+    "args": [],
+    "_stealth": "Patch the automation signals before every page load. On by default; it is what the no-API-key premise rests on.",
+    "stealth": true
+  },
+
+  "search": {
+    "_engine": "What web_search uses when a call names no engine: google, duckduckgo, bing, brave, startpage or mojeek.",
+    "engine": "google",
+
+    "_max_results": "Ceiling on num_results for every search tool. The results land in a model's context window, so this is a real limit rather than a formality.",
+    "max_results": 20,
+
+    "_max_page_chars": "Ceiling on what visit_page returns. The MAX_PAGE_CHARS environment variable overrides the default.",
+    "max_page_chars": 8000,
+
+    "_resolve_redirects": "Follow the tracking redirect each engine wraps its results in, so callers get real destination URLs. Google's is opaque and costs one request per result to resolve; DuckDuckGo's and Bing's are decoded locally and cost nothing.",
+    "resolve_redirects": true,
+
+    "safe_search": false,
+    "_cookie_file": "Where cookies are kept between runs. Defaults to cookies.json inside the profile directory.",
+    "cookie_file": ""
+  },
+
+  "downloads": {
+    "_comment": "Files download_asset fetches and this server then hosts. Holding somebody else's files and serving them back is the part of this server that most resembles a file host, so these limits are what keep it from becoming one.",
+    "_dir": "Where the files live. Relative paths resolve against the working directory.",
+    "dir": "downloads",
+
+    "_max_file_bytes": "Cap on one download.",
+    "max_file_bytes": 26214400,
+    "_max_total_bytes": "Cap on the whole store. Reaching it refuses new downloads rather than deleting old ones: these are files somebody asked for by name, and a server that quietly discards them to serve the next request is worse than one that says it is full. delete_download is how room is made.",
+    "max_total_bytes": 524288000,
+
+    "_allow_private_hosts": "Permit downloading from loopback, link-local and private addresses. Off by default, and worth understanding before turning on: this server fetches a URL a caller chose, from wherever this server sits, and then serves the result back. On a machine with a private network around it that reads things the caller could not otherwise reach - another service on localhost, or a cloud metadata endpoint handing out credentials. Turn it on to fetch from your own intranet, knowing that is what it means. Redirects are checked at every hop, not just the first.",
+    "allow_private_hosts": false,
+
+    "_public": "Serve the stored files with no bearer token. The paths are unguessable, so a link can be handed to something that cannot set a header - which is often the point of storing a file at all. It is still a decision: anyone with the URL has the file.",
+    "public": false
+  },
+
+  "api": {
+    "_comment": "The OpenAPI REST facade and Swagger UI, served alongside the MCP endpoint. It needs the http transport, and is on by default whenever that is set - which is why this is null rather than true. Setting it to true while the transport is stdio is refused rather than ignored, because there would be nothing to serve it over.",
+    "enabled": null,
+    "base_path": "/api/v1",
+    "docs_path": "/docs",
+    "spec_path": "/openapi.json",
+    "_protect_docs": "Require the bearer token for the documentation page and the spec as well as for the operations. Off by default: they describe the API but cannot act on it, the page embeds no credential, and protecting them mostly defeats them since a browser cannot put an Authorization header on a pasted URL. Turn it on when the surface itself is worth not publishing, and reach the docs with a client that can set headers.",
+    "protect_docs": false,
+
+    "_downloads_path": "Where stored files are served. Defaults to \"downloads\" under the MCP endpoint's own path - /mcp/downloads for the default /mcp - so it rides along with the address a client is already configured for, which is what makes it reachable through a tunnel with nothing else to arrange.",
+    "downloads_path": "",
+
+    "_public_url": "The origin written into the spec. Set it when the API is reached through the tunnel or a reverse proxy, so Swagger UI's 'Try it out' aims at the address the browser can reach rather than the one this process bound.",
+    "public_url": ""
+  },
+
+  "tunnel": {
+    "_comment": "Expose this server on a public HTTPS URL through an https-tunnel server, without opening a port. The handler is served in process by the tunnel client. The URL is public: set server.auth_token before enabling this.",
+    "enabled": false,
+    "server_url": "https://tunnel.example.com",
+    "_api_key": "Leave empty to read api_key_env instead, which keeps the key out of this file.",
+    "api_key": "",
+    "api_key_env": "TUNNEL_API_KEY",
+    "_subdomain": "The label to ask for. Granted when free, otherwise a random one is issued - so read the URL the server prints.",
+    "subdomain": "",
+    "_session_id": "Resume a previous session, keeping its public URL. Normally left empty and managed through session_file.",
+    "session_id": "",
+    "_session_file": "Persist the issued session id here so a restart reclaims the same URL. Empty means it is written back into this file instead.",
+    "session_file": "",
+    "_only": "Serve the tunnel alone, binding no local port.",
+    "only": false,
+    "_allow_anonymous": "Serve the tunnel with no bearer token. Without this, a tunnel and an empty server.auth_token is refused at startup rather than warned about - a public URL that drives a browser is not something to drift into, and a warning printed by a server an editor started in the background is not read. Setting it means accepting that anyone with the URL can search and browse as you.",
+    "allow_anonymous": false,
+    "client_info": ""
+  }
+}

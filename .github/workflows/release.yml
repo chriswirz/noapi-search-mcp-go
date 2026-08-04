@@ -1,0 +1,175 @@
+name: build-and-publish
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # The version is computed once and consumed by every later job, so the
+  # binary's --version output, the package metadata and the release tag cannot
+  # drift apart. v0.1.<run number, four digits>: monotonic, sortable, and it
+  # says which run produced a binary without consulting anything.
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.compute.outputs.version }}
+    steps:
+      - id: compute
+        run: |
+          number="$(printf '%04d' "${{ github.run_number }}")"
+          echo "version=0.1.${number}" >> "$GITHUB_OUTPUT"
+          echo "building v0.1.${number}"
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Check formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "These files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - run: go vet ./...
+      - run: go test ./...
+
+      # The unit tests deliberately touch no network: they cover the protocol,
+      # the schemas and the parsing, against fixed inputs. This step is the
+      # other half - it proves the binary actually starts, serves both
+      # surfaces, and renders a spec that parses. It does not search anything,
+      # because a CI job that fails when Google rate-limits a shared runner
+      # address is a job people learn to ignore.
+      - name: Smoke test the built server
+        run: |
+          go build -o noapi-search-mcp .
+          ./noapi-search-mcp --transport http --check
+          ./noapi-search-mcp --transport http --url http://127.0.0.1:8780/mcp &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8780/api/v1/health >/dev/null && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8780/api/v1/health | grep -q '"status":"ok"'
+          curl -sf http://127.0.0.1:8780/openapi.json | grep -q '"openapi"'
+          curl -sf http://127.0.0.1:8780/docs | grep -q 'SwaggerUIBundle'
+          # Swagger UI has to be served from the binary itself, so a machine
+          # with no network still gets the documentation.
+          curl -sf http://127.0.0.1:8780/docs/swagger-ui-bundle.js >/dev/null
+          curl -sf -X POST http://127.0.0.1:8780/mcp \
+            -H 'Content-Type: application/json' \
+            -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H 'Mcp-Method: tools/list' \
+            -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}' \
+            | grep -q '"web_search"'
+          echo "smoke test passed"
+
+  build:
+    needs: [version, test]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { goos: windows, goarch: amd64, ext: .exe }
+          - { goos: windows, goarch: arm64, ext: .exe }
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          # No cgo, so each binary is a single static file that runs on any
+          # machine of its architecture without a matching libc.
+          CGO_ENABLED: "0"
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          name="noapi-search-mcp-${GOOS}-${GOARCH}${{ matrix.ext }}"
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o "dist/${name}" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: noapi-search-mcp-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+
+  # Linux packages only. A .deb and an .rpm put the binary on the path and the
+  # documentation where a Linux user expects to find it; Windows gets the bare
+  # executable, which is what people there actually want from a tool an editor
+  # launches by absolute path.
+  package:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: noapi-search-mcp-linux-${{ matrix.arch }}
+          path: dist
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Install nfpm
+        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+      - name: Build .deb and .rpm
+        env:
+          ARCH: ${{ matrix.arch }}
+          PKG_VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          # nfpm does not expand environment variables inside contents paths,
+          # so the right binary is staged under a fixed name first.
+          cp "dist/noapi-search-mcp-linux-${ARCH}" packaging/noapi-search-mcp
+          chmod +x packaging/noapi-search-mcp
+          mkdir -p out
+          nfpm package -f packaging/nfpm.yaml -p deb -t out/
+          nfpm package -f packaging/nfpm.yaml -p rpm -t out/
+          ls -l out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: noapi-search-mcp-packages-${{ matrix.arch }}
+          path: out/*
+          if-no-files-found: error
+
+  publish:
+    needs: [version, build, package]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: staging
+      - name: Collect artifacts
+        run: |
+          mkdir -p dist
+          find staging -type f -exec mv {} dist/ \;
+          # The checksums are what install.sh verifies its download against, so
+          # they are published alongside rather than being optional.
+          cd dist && sha256sum * > SHA256SUMS
+          ls -l
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          gh release create "v${VERSION}" dist/* \
+            --title "noapi-search-mcp v${VERSION}" \
+            --notes "Automated build of \`${{ github.sha }}\` from \`${{ github.ref_name }}\`." \
+            --latest

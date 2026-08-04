@@ -1,0 +1,104 @@
+# Runs the compatibility harness against the live services on a schedule.
+#
+# This is the check the unit tests cannot be. Everything this server does rests
+# on assumptions about someone else's markup, and when one of those changes the
+# symptom is an empty result rather than a failure - so without something like
+# this, a scraper can be broken for weeks while merely looking unlucky.
+#
+# It is a separate workflow from the release build on purpose. It fails for
+# reasons outside the repository, so it must never be able to block a merge or
+# a release; it runs on its own, and what it produces is a signal that
+# something upstream moved.
+
+name: compatibility
+
+on:
+  schedule:
+    # Daily, at an unremarkable hour. Not on the hour: every scheduled workflow
+    # on GitHub fires at :00, and the queueing that causes is avoidable.
+    - cron: "37 6 * * *"
+  workflow_dispatch:
+    inputs:
+      filter:
+        description: "Which checks to run (substring match, e.g. search, google). Empty runs all."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    # The harness makes real network calls to a dozen services, some of which
+    # are slow when they are not refusing outright.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Build
+        run: go build -o noapi-search-mcp .
+
+      # The browser-backed checks are the ones most worth running, since the
+      # scraped pages are what change. The driver's own CDN was retired, so
+      # downloads are pointed at the npmmirror binary mirror, which carries the
+      # driver and the matching Chromium builds under the same layout.
+      - name: Install the Playwright browser
+        env:
+          PLAYWRIGHT_DOWNLOAD_HOST: https://registry.npmmirror.com/-/binary/playwright
+        run: go run github.com/playwright-community/playwright-go/cmd/playwright@v0.6000.0 install --with-deps chromium
+
+      - name: Compatibility check
+        id: selftest
+        env:
+          FILTER: ${{ github.event.inputs.filter }}
+        run: |
+          set +e
+          ./noapi-search-mcp --selftest $FILTER 2>&1 | tee report.txt
+          # The exit code is the harness's, not tee's.
+          status="${PIPESTATUS[0]}"
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit 0
+        shell: bash
+
+      - name: Summarise
+        run: |
+          {
+            echo '## Compatibility check'
+            echo
+            echo '```'
+            cat report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # A datacentre address is rate-limited by Google far more readily than a
+      # home one, so "blocked" is the common outcome here and is not news. Only
+      # "broken" - a service answering normally with data this server can no
+      # longer read - is worth waking anyone for, and that is exactly what the
+      # harness's exit code means.
+      - name: Open an issue if something is broken
+        if: steps.selftest.outputs.status != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Compatibility check failed: a scraped service changed"
+          # One open issue at a time. A daily job filing a duplicate every
+          # morning is how a useful signal becomes noise people filter out.
+          existing="$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$(printf 'Still failing on %s.\n\n```\n%s\n```\n' "$(date -u +%Y-%m-%d)" "$(cat report.txt)")"
+            exit 0
+          fi
+          gh issue create --title "$title" \
+            --label "compatibility" \
+            --body "$(printf 'The scheduled compatibility check found a service answering normally but returning data this server can no longer read. That means an extraction needs updating - it is not rate limiting, which the harness reports separately and does not fail on.\n\n```\n%s\n```\n\nRun it locally with:\n\n```sh\n./build.sh --selftest\n```\n' "$(cat report.txt)")"
+
+      - name: Fail the run if something is broken
+        if: steps.selftest.outputs.status != '0'
+        run: |
+          echo "A compatibility check reported BROKEN. See the summary above."
+          exit 1

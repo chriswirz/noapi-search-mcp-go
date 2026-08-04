@@ -1,0 +1,31 @@
+# The persistent browser profile: cookies, cache, and a session Google
+# recognises. Local state, and a credential of sorts - never commit it.
+/profile/
+/profile-*/
+
+# Local overrides. config.example.json is the one that is tracked.
+/config.json
+
+# Files download_asset fetched. Somebody else's content, cached locally.
+/downloads/
+
+# Build output.
+#
+# The -o name the build scripts use, and the one a bare `go build` produces:
+# with no -o, Go names the binary after the module, which is the directory
+# name rather than the command name. Missing that second form is how a 15 MB
+# executable ends up committed.
+/noapi-search-mcp
+/noapi-search-mcp.exe
+/noapi-search-mcp-go
+/noapi-search-mcp-go.exe
+
+# Editor and tooling backups of the above. A trailing ~ defeats the patterns
+# over it, which is how a stray 11 MB copy got tracked once already.
+*~
+/dist/
+/out/
+
+# Any stray cross-compiled binary from an interrupted --all build.
+/noapi-search-mcp-*-*
+/noapi-search-mcp-*-*.exe
